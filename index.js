@@ -8,109 +8,163 @@ const ASTEROIDS_SIZE = 100; // size in pixel
 const ASTEROIDS_SPEED = 50; // max starting speed in pixels per sec
 const ASTEROIDS_VERT = 10; // avg num of vertices
 const ASTEROID_JAG = 0.3;
+const SHOW_CENTER_DOT = false;
+const SHOW_BOUNDING = false;
+const SHIP_EXPLODE_DURATION = 0.3;
 
 /** @type {HTMLCanvasElement} */
 let canvas = document.getElementById("gameCanvas");
 let ctx = canvas.getContext("2d");
 
-let ship = {
-  x: canvas.width / 2,
-  y: canvas.height / 2,
-  radius: SHIP_SIZE / 2,
-  angle: (90 / 180) * Math.PI, // 90 deg -> up, converting to rad
-  rotation: 0,
-  thrusting: false,
-  thrust: {
-    x: 0,
-    y: 0
-  }
-};
+function newShip() {
+  return {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    radius: SHIP_SIZE / 2,
+    angle: (90 / 180) * Math.PI, // 90 deg -> up, converting to rad
+    rotation: 0,
+    thrusting: false,
+    thrust: {
+      x: 0,
+      y: 0
+    },
+    explodeTime: 0
+  };
+}
+
+let ship = newShip();
 
 let asteroids = [];
 
+function explodeShip() {
+  // ctx.fillStyle = "lime";
+  // ctx.strokeStyle = "lime";
+  // ctx.beginPath();
+  // ctx.arc(ship.x, ship.y, ship.radius, 0, Math.PI * 2, false);
+  // ctx.fill();
+  // ctx.stroke();
+  ship.explodeTime = Math.ceil(SHIP_EXPLODE_DURATION * FPS);
+}
+
 function update() {
+  let exploding = ship.explodeTime > 0;
+
   // space
   ctx.fillStyle = "black";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // thrust
   if (ship.thrusting) {
-    ship.thrust.x += (SHIP_THRUST * Math.cos(ship.angle)) / FPS;
-    ship.thrust.y -= (SHIP_THRUST * Math.sin(ship.angle)) / FPS;
+    if (!exploding) {
+      ship.thrust.x += (SHIP_THRUST * Math.cos(ship.angle)) / FPS;
+      ship.thrust.y -= (SHIP_THRUST * Math.sin(ship.angle)) / FPS;
 
-    // draw thruster
-    ctx.strokeStyle = "yellow";
-    ctx.fillStyle = "red";
-    ctx.lineWidth = SHIP_SIZE / 10;
-    ctx.beginPath();
-    ctx.moveTo(
-      // rear left
-      ship.x -
-        ship.radius *
-          ((2 / 3) * Math.cos(ship.angle) + 0.5 * Math.sin(ship.angle)),
-      ship.y +
-        ship.radius *
-          ((2 / 3) * Math.sin(ship.angle) - 0.5 * Math.cos(ship.angle))
-    );
-    ctx.lineTo(
-      // rear center - behind the ship
-      ship.x - ship.radius * ((6 / 3) * Math.cos(ship.angle)),
-      ship.y + ship.radius * ((6 / 3) * Math.sin(ship.angle))
-    );
-    ctx.lineTo(
-      // rear right
-      ship.x -
-        ship.radius *
-          ((2 / 3) * Math.cos(ship.angle) - 0.5 * Math.sin(ship.angle)),
-      ship.y +
-        ship.radius *
-          ((2 / 3) * Math.sin(ship.angle) + 0.5 * Math.cos(ship.angle))
-    );
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+      // draw thruster
+      ctx.strokeStyle = "yellow";
+      ctx.fillStyle = "red";
+      ctx.lineWidth = SHIP_SIZE / 10;
+      ctx.beginPath();
+      ctx.moveTo(
+        // rear left
+        ship.x -
+          ship.radius *
+            ((2 / 3) * Math.cos(ship.angle) + 0.5 * Math.sin(ship.angle)),
+        ship.y +
+          ship.radius *
+            ((2 / 3) * Math.sin(ship.angle) - 0.5 * Math.cos(ship.angle))
+      );
+      ctx.lineTo(
+        // rear center - behind the ship
+        ship.x - ship.radius * ((6 / 3) * Math.cos(ship.angle)),
+        ship.y + ship.radius * ((6 / 3) * Math.sin(ship.angle))
+      );
+      ctx.lineTo(
+        // rear right
+        ship.x -
+          ship.radius *
+            ((2 / 3) * Math.cos(ship.angle) - 0.5 * Math.sin(ship.angle)),
+        ship.y +
+          ship.radius *
+            ((2 / 3) * Math.sin(ship.angle) + 0.5 * Math.cos(ship.angle))
+      );
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
   } else {
     ship.thrust.x -= (FRICTION * ship.thrust.x) / FPS;
     ship.thrust.y -= (FRICTION * ship.thrust.y) / FPS;
   }
 
   // ship
-  ctx.strokeStyle = "white";
-  ctx.lineWidth = SHIP_SIZE / 20;
-  ctx.beginPath();
-  ctx.moveTo(
-    // nose
-    ship.x + (4 / 3) * ship.radius * Math.cos(ship.angle), // cosine represents horizontal
-    ship.y - (4 / 3) * ship.radius * Math.sin(ship.angle) // sine represents vertical
-  );
-  ctx.lineTo(
-    // rear left
-    ship.x -
-      ship.radius * ((2 / 3) * Math.cos(ship.angle) + Math.sin(ship.angle)),
-    ship.y +
-      ship.radius * ((2 / 3) * Math.sin(ship.angle) - Math.cos(ship.angle))
-  );
-  ctx.lineTo(
-    // rear right
-    ship.x -
-      ship.radius * ((2 / 3) * Math.cos(ship.angle) - Math.sin(ship.angle)),
-    ship.y +
-      ship.radius * ((2 / 3) * Math.sin(ship.angle) + Math.cos(ship.angle))
-  );
-  ctx.closePath();
-  ctx.stroke();
+  if (!exploding) {
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = SHIP_SIZE / 20;
+    ctx.beginPath();
+    ctx.moveTo(
+      // nose
+      ship.x + (4 / 3) * ship.radius * Math.cos(ship.angle), // cosine represents horizontal
+      ship.y - (4 / 3) * ship.radius * Math.sin(ship.angle) // sine represents vertical
+    );
+    ctx.lineTo(
+      // rear left
+      ship.x -
+        ship.radius * ((2 / 3) * Math.cos(ship.angle) + Math.sin(ship.angle)),
+      ship.y +
+        ship.radius * ((2 / 3) * Math.sin(ship.angle) - Math.cos(ship.angle))
+    );
+    ctx.lineTo(
+      // rear right
+      ship.x -
+        ship.radius * ((2 / 3) * Math.cos(ship.angle) - Math.sin(ship.angle)),
+      ship.y +
+        ship.radius * ((2 / 3) * Math.sin(ship.angle) + Math.cos(ship.angle))
+    );
+    ctx.closePath();
+    ctx.stroke();
+
+    if (SHOW_BOUNDING) {
+      ctx.strokeStyle = "lime";
+      ctx.beginPath();
+      ctx.arc(ship.x, ship.y, ship.radius, 0, Math.PI * 2, false);
+      ctx.stroke();
+    }
+  } else {
+    ctx.fillStyle = "darkred";
+    ctx.beginPath();
+    ctx.arc(ship.x, ship.y, ship.radius * 1.7, 0, Math.PI * 2, false);
+    ctx.fill();
+    ctx.fillStyle = "red";
+    ctx.beginPath();
+    ctx.arc(ship.x, ship.y, ship.radius * 1.4, 0, Math.PI * 2, false);
+    ctx.fill();
+    ctx.fillStyle = "orange";
+    ctx.beginPath();
+    ctx.arc(ship.x, ship.y, ship.radius * 1.1, 0, Math.PI * 2, false);
+    ctx.fill();
+    ctx.fillStyle = "yellow";
+    ctx.beginPath();
+    ctx.arc(ship.x, ship.y, ship.radius * 0.8, 0, Math.PI * 2, false);
+    ctx.fill();
+    ctx.fillStyle = "white";
+    ctx.beginPath();
+    ctx.arc(ship.x, ship.y, ship.radius * 0.5, 0, Math.PI * 2, false);
+    ctx.fill();
+  }
 
   // asteroids
-  ctx.strokeStyle = "slategrey";
   ctx.lineWidth = SHIP_SIZE / 20;
   asteroids.forEach(
     ({ x, y, radius, angle, vert, offsets, xVelocity, yVelocity }, i) => {
+      ctx.strokeStyle = "slategrey";
+
       // PATH
       ctx.beginPath();
       ctx.moveTo(
         x + radius * offsets[0] * Math.cos(angle),
         y + radius * offsets[0] * Math.sin(angle)
       );
+
       // POLYGON
       for (let j = 1; j < vert; j++) {
         ctx.lineTo(
@@ -120,37 +174,44 @@ function update() {
       }
       ctx.closePath();
       ctx.stroke();
-      // MOVE AESTEROID
-      asteroids[i].x += xVelocity;
-      asteroids[i].y += yVelocity;
-      // HANDLE EDGE
-      let leftCorner = 0 - radius;
-      let rightCorner = canvas.width + radius;
-      let topCorner = 0 - radius;
-      let bottomCorner = canvas.height + radius;
 
-      if (asteroids[i].x < leftCorner) {
-        asteroids[i].x = rightCorner;
-      } else if (asteroids[i].x > rightCorner) {
-        asteroids[i].x = leftCorner;
-      }
-
-      if (asteroids[i].y < topCorner) {
-        asteroids[i].y = bottomCorner;
-      } else if (asteroids[i].y > bottomCorner) {
-        asteroids[i].y = topCorner;
+      if (SHOW_BOUNDING) {
+        ctx.strokeStyle = "lime";
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2, false);
+        ctx.stroke();
       }
     }
   );
 
-  // rotate
-  ship.angle += ship.rotation;
+  // center dot
+  if (SHOW_CENTER_DOT) {
+    ctx.fillStyle = "red";
+    ctx.fillRect(ship.x - 1, ship.y - 1, 2, 2);
+  }
 
-  // move
-  ship.x += ship.thrust.x;
-  ship.y += ship.thrust.y;
+  // check for collisions
+  if (!exploding) {
+    // rotate
+    ship.angle += ship.rotation;
 
-  // handle edge
+    asteroids.forEach(({ x, y, radius }) => {
+      if (distBetweenPoints(ship.x, ship.y, x, y) < ship.radius + radius) {
+        explodeShip();
+      }
+    });
+
+    // move ship
+    ship.x += ship.thrust.x;
+    ship.y += ship.thrust.y;
+  } else {
+    ship.explodeTime--;
+    if (ship.explodeTime == 0) {
+      ship = newShip();
+    }
+  }
+
+  // handle edge (ship)
   let LEFT_CORNER = 0 - ship.radius;
   let RIGHT_CORNER = canvas.width + ship.radius;
   let TOP_CORNER = 0 - ship.radius;
@@ -167,9 +228,29 @@ function update() {
     ship.y = TOP_CORNER;
   }
 
-  // center dot
-  // ctx.fillStyle = "red";
-  // ctx.fillRect(ship.x - 1, ship.y - 1, 2, 2);
+  asteroids.forEach(({ radius, xVelocity, yVelocity }, i) => {
+    // MOVE AESTEROID
+    asteroids[i].x += xVelocity;
+    asteroids[i].y += yVelocity;
+
+    // HANDLE EDGE
+    let leftCorner = 0 - radius;
+    let rightCorner = canvas.width + radius;
+    let topCorner = 0 - radius;
+    let bottomCorner = canvas.height + radius;
+
+    if (asteroids[i].x < leftCorner) {
+      asteroids[i].x = rightCorner;
+    } else if (asteroids[i].x > rightCorner) {
+      asteroids[i].x = leftCorner;
+    }
+
+    if (asteroids[i].y < topCorner) {
+      asteroids[i].y = bottomCorner;
+    } else if (asteroids[i].y > bottomCorner) {
+      asteroids[i].y = topCorner;
+    }
+  });
 }
 
 function keyDown(/** @type {KeyboardEvent} */ ev) {
