@@ -11,6 +11,8 @@ const ASTEROID_JAG = 0.3;
 const SHOW_CENTER_DOT = false;
 const SHOW_BOUNDING = false;
 const SHIP_EXPLODE_DURATION = 0.3;
+const SHIP_INVINCIBLE_DURATION = 3;
+const SHIP_BLINK_DURATION = 0.1;
 
 /** @type {HTMLCanvasElement} */
 let canvas = document.getElementById("gameCanvas");
@@ -28,7 +30,9 @@ function newShip() {
       x: 0,
       y: 0
     },
-    explodeTime: 0
+    explodeTime: 0,
+    blinkTime: Math.ceil(SHIP_BLINK_DURATION * FPS),
+    blinkNum: Math.ceil(SHIP_INVINCIBLE_DURATION / SHIP_BLINK_DURATION)
   };
 }
 
@@ -47,6 +51,7 @@ function explodeShip() {
 }
 
 function update() {
+  var blinkOn = ship.blinkNum % 2 === 0;
   let exploding = ship.explodeTime > 0;
 
   // space
@@ -55,7 +60,7 @@ function update() {
 
   // thrust
   if (ship.thrusting) {
-    if (!exploding) {
+    if (!exploding && blinkOn) {
       ship.thrust.x += (SHIP_THRUST * Math.cos(ship.angle)) / FPS;
       ship.thrust.y -= (SHIP_THRUST * Math.sin(ship.angle)) / FPS;
 
@@ -98,38 +103,49 @@ function update() {
 
   // ship
   if (!exploding) {
-    ctx.strokeStyle = "white";
-    ctx.lineWidth = SHIP_SIZE / 20;
-    ctx.beginPath();
-    ctx.moveTo(
-      // nose
-      ship.x + (4 / 3) * ship.radius * Math.cos(ship.angle), // cosine represents horizontal
-      ship.y - (4 / 3) * ship.radius * Math.sin(ship.angle) // sine represents vertical
-    );
-    ctx.lineTo(
-      // rear left
-      ship.x -
-        ship.radius * ((2 / 3) * Math.cos(ship.angle) + Math.sin(ship.angle)),
-      ship.y +
-        ship.radius * ((2 / 3) * Math.sin(ship.angle) - Math.cos(ship.angle))
-    );
-    ctx.lineTo(
-      // rear right
-      ship.x -
-        ship.radius * ((2 / 3) * Math.cos(ship.angle) - Math.sin(ship.angle)),
-      ship.y +
-        ship.radius * ((2 / 3) * Math.sin(ship.angle) + Math.cos(ship.angle))
-    );
-    ctx.closePath();
-    ctx.stroke();
-
-    if (SHOW_BOUNDING) {
-      ctx.strokeStyle = "lime";
+    if (blinkOn) {
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = SHIP_SIZE / 20;
       ctx.beginPath();
-      ctx.arc(ship.x, ship.y, ship.radius, 0, Math.PI * 2, false);
+      ctx.moveTo(
+        // nose
+        ship.x + (4 / 3) * ship.radius * Math.cos(ship.angle), // cosine represents horizontal
+        ship.y - (4 / 3) * ship.radius * Math.sin(ship.angle) // sine represents vertical
+      );
+      ctx.lineTo(
+        // rear left
+        ship.x -
+          ship.radius * ((2 / 3) * Math.cos(ship.angle) + Math.sin(ship.angle)),
+        ship.y +
+          ship.radius * ((2 / 3) * Math.sin(ship.angle) - Math.cos(ship.angle))
+      );
+      ctx.lineTo(
+        // rear right
+        ship.x -
+          ship.radius * ((2 / 3) * Math.cos(ship.angle) - Math.sin(ship.angle)),
+        ship.y +
+          ship.radius * ((2 / 3) * Math.sin(ship.angle) + Math.cos(ship.angle))
+      );
+      ctx.closePath();
       ctx.stroke();
+
+      if (SHOW_BOUNDING) {
+        ctx.strokeStyle = "lime";
+        ctx.beginPath();
+        ctx.arc(ship.x, ship.y, ship.radius, 0, Math.PI * 2, false);
+        ctx.stroke();
+      }
+    }
+    if (ship.blinkNum > 0) {
+      // reduce blink time and num
+      ship.blinkTime--;
+      if (ship.blinkTime === 0) {
+        ship.blinkTime = Math.ceil(SHIP_BLINK_DURATION * FPS);
+        ship.blinkNum--;
+      }
     }
   } else {
+    // explosion
     ctx.fillStyle = "darkred";
     ctx.beginPath();
     ctx.arc(ship.x, ship.y, ship.radius * 1.7, 0, Math.PI * 2, false);
@@ -190,16 +206,18 @@ function update() {
     ctx.fillRect(ship.x - 1, ship.y - 1, 2, 2);
   }
 
-  // check for collisions
   if (!exploding) {
     // rotate
     ship.angle += ship.rotation;
 
-    asteroids.forEach(({ x, y, radius }) => {
-      if (distBetweenPoints(ship.x, ship.y, x, y) < ship.radius + radius) {
-        explodeShip();
-      }
-    });
+    // check for collisions
+    if (ship.blinkNum === 0) {
+      asteroids.forEach(({ x, y, radius }) => {
+        if (distBetweenPoints(ship.x, ship.y, x, y) < ship.radius + radius) {
+          explodeShip();
+        }
+      });
+    }
 
     // move ship
     ship.x += ship.thrust.x;
